@@ -1,7 +1,7 @@
 import { BodyRecord, IBodyDataParser, ParseResult } from '../../types/bodyComposition';
 
 export class OkokExcelParser implements IBodyDataParser {
-  name = 'OKOK 國際版 (Xlsx)';
+  name = 'OKOK 國際版 (.xlsx)';
   id = 'okok';
   description = '支援『OKOK-國際版』App 匯出的 Excel (.xlsx / .xls) 體量測數據檔';
 

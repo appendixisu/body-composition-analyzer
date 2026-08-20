@@ -1,7 +1,7 @@
 import { BodyRecord, IBodyDataParser, ParseResult } from '../../types/bodyComposition';
 
 export class OmronCsvParser implements IBodyDataParser {
-  name = 'Omron Connect (CSV)';
+  name = 'Omron Connect (.csv)';
   id = 'omron';
   description = '支援 Omron Connect App 導出的體組成 CSV 資料檔 (包含雙臂、軀幹、雙腳細部數據)';
 
