@@ -363,6 +363,76 @@ export function calculateWeightLossQuality(
   }
 }
 
+export interface WeightVelocityAnalysis {
+  weeklyRateKg: number;
+  monthlyRateKg: number;
+  statusRating: 'too_fast_loss' | 'healthy_loss' | 'mild_loss' | 'maintain' | 'healthy_gain' | 'too_fast_gain';
+  statusLabel: string;
+  statusBadgeClass: string;
+  advice: string;
+  ratePerWeekText: string;
+}
+
+export function calculateWeightVelocity(records: BodyRecord[]): WeightVelocityAnalysis | null {
+  if (!records || records.length < 2) return null;
+  const weeklyData = prepareWeeklyData(records);
+  if (!weeklyData || weeklyData.length < 2) return null;
+
+  const latest = weeklyData[weeklyData.length - 1];
+  const prev = weeklyData[weeklyData.length - 2];
+
+  // 計算近週每週變化速度 (kg/週)
+  const weeklyRateKg = parseFloat((latest.weightAvg - prev.weightAvg).toFixed(2));
+  const monthlyRateKg = parseFloat((weeklyRateKg * 4.33).toFixed(1));
+
+  let statusRating: WeightVelocityAnalysis['statusRating'] = 'maintain';
+  let statusLabel = '體重平穩維持 (±0.2 kg/週)';
+  let statusBadgeClass = 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300';
+  let advice = '目前週平均體重相當平穩，適合維持期或奠定生理代謝基礎。';
+
+  if (weeklyRateKg < -1.0) {
+    statusRating = 'too_fast_loss';
+    statusLabel = '⚠️ 瘦太快警示！(每週減 > 1.0 kg)';
+    statusBadgeClass = 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300 animate-pulse';
+    advice = `警示！您目前每週平均減重速度高達 ${Math.abs(weeklyRateKg)} kg/週 (約每月減 ${Math.abs(monthlyRateKg)} kg)。瘦太快極易導致肌肉劇烈流失、膽結石風險與基礎代謝急速下降，建議適度提升每日熱量與蛋白質攝取！`;
+  } else if (weeklyRateKg <= -0.5) {
+    statusRating = 'healthy_loss';
+    statusLabel = '✨ 黃金減重速度 (-0.5 ~ -1.0 kg/週)';
+    statusBadgeClass = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300';
+    advice = `太棒了！您目前的每週減重速度為 ${Math.abs(weeklyRateKg)} kg/週，屬於醫學推薦的黃金健康減脂速率。在有效燃燒脂肪的同時能最大化保留肌肉！`;
+  } else if (weeklyRateKg < -0.2) {
+    statusRating = 'mild_loss';
+    statusLabel = '🌱 溫和徐緩減重 (-0.2 ~ -0.5 kg/週)';
+    statusBadgeClass = 'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300';
+    advice = `進度良好！每週平均減少 ${Math.abs(weeklyRateKg)} kg，速度溫和且極具永續性，不易復胖且生活壓力小。`;
+  } else if (weeklyRateKg <= 0.2) {
+    statusRating = 'maintain';
+    statusLabel = '⚖️ 體重平穩維持 (±0.2 kg/週)';
+    statusBadgeClass = 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300';
+    advice = `體重呈平穩維持狀態 (${weeklyRateKg > 0 ? '+' : ''}${weeklyRateKg} kg/週)。適合代謝休養期或維持體態。`;
+  } else if (weeklyRateKg <= 0.5) {
+    statusRating = 'healthy_gain';
+    statusLabel = '💪 穩定健康增重/增肌 (+0.2 ~ +0.5 kg/週)';
+    statusBadgeClass = 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300';
+    advice = `增重速度控制理想 (+${weeklyRateKg} kg/週)！若配合充足阻力訓練，此速度能幫助肌肉增長同時控制體脂。`;
+  } else {
+    statusRating = 'too_fast_gain';
+    statusLabel = '⚠️ 胖太快 / 增重過快警示！(每週增 > 0.5 kg)';
+    statusBadgeClass = 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300';
+    advice = `警示！目前每週體重增加速度達 +${weeklyRateKg} kg/週 (約每月增 +${monthlyRateKg} kg)。增重速度過快可能導致體脂肪迅速堆積，建議適當控制熱量盈餘。`;
+  }
+
+  return {
+    weeklyRateKg,
+    monthlyRateKg,
+    statusRating,
+    statusLabel,
+    statusBadgeClass,
+    advice,
+    ratePerWeekText: `${weeklyRateKg > 0 ? '+' : ''}${weeklyRateKg} kg / 週`
+  };
+}
+
 export function getVisceralFatCategory(visceralFat: number): VisceralFatCategory {
   if (visceralFat <= 9) {
     return { category: '標準 (1-9)', color: '#10b981' };

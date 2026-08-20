@@ -1,13 +1,14 @@
 import React from 'react';
-import { Activity, BarChart3, Calendar, Database, Layers, Moon, Sun, PlusCircle } from 'lucide-react';
+import { Activity, BarChart3, Calendar, Database, Layers, Moon, Sun, PlusCircle, Monitor } from 'lucide-react';
 
 export type TabType = 'dashboard' | 'charts' | 'segmental' | 'history' | 'data';
+export type ThemeMode = 'system' | 'light' | 'dark';
 
 interface NavbarProps {
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
-  darkMode: boolean;
-  setDarkMode: (val: boolean) => void;
+  themeMode: ThemeMode;
+  setThemeMode: (mode: ThemeMode) => void;
   onOpenAddModal: () => void;
   recordCount: number;
 }
@@ -15,11 +16,16 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
-  darkMode,
-  setDarkMode,
+  themeMode,
+  setThemeMode,
   onOpenAddModal,
   recordCount,
 }) => {
+  const cycleThemeMode = () => {
+    if (themeMode === 'system') setThemeMode('light');
+    else if (themeMode === 'light') setThemeMode('dark');
+    else setThemeMode('system');
+  };
   const navItems: { id: TabType; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard', label: '儀表總覽', icon: <Activity className="w-5 h-5" /> },
     { id: 'charts', label: '趨勢分析', icon: <BarChart3 className="w-5 h-5" /> },
@@ -90,19 +96,33 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               <button
-                onClick={() => setDarkMode(!darkMode)}
-                className="p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
-                aria-label="Toggle dark mode"
+                onClick={cycleThemeMode}
+                className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors text-xs font-medium"
+                title={
+                  themeMode === 'system'
+                    ? '外觀設定：目前跟隨系統 (點擊切換為淺色)'
+                    : themeMode === 'light'
+                    ? '外觀設定：目前淺色模式 (點擊切換為深色)'
+                    : '外觀設定：目前深色模式 (點擊切換為跟隨系統)'
+                }
               >
-                {darkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
+                {themeMode === 'system' && <Monitor className="w-4 h-4 text-brand-500" />}
+                {themeMode === 'light' && <Sun className="w-4 h-4 text-amber-500" />}
+                {themeMode === 'dark' && <Moon className="w-4 h-4 text-indigo-400" />}
+                <span className="hidden lg:inline">
+                  {themeMode === 'system' ? '跟隨系統' : themeMode === 'light' ? '淺色' : '深色'}
+                </span>
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-t border-gray-200 dark:border-slate-800 px-2 py-1 shadow-lg">
+      {/* Mobile Bottom Navigation Bar with iOS Safe Area Support */}
+      <div
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-t border-gray-200 dark:border-slate-800 px-2 pt-1 shadow-lg"
+        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))' }}
+      >
         <div className="grid grid-cols-5 gap-1">
           {navItems.map((item) => {
             const isActive = activeTab === item.id;

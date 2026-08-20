@@ -1,16 +1,24 @@
 import React, { useState } from 'react';
 import { BodyRecord } from '../types/bodyComposition';
+import { ThemeMode } from './Navbar';
 import { parseCsvFile, getRegisteredParsers } from '../services/parsers/parserFactory';
 import { bulkAddRecords, clearAllRecords } from '../services/db';
-import { Upload, Download, Trash2, Database, AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Upload, Download, Trash2, Database, AlertCircle, CheckCircle2, ShieldCheck, Monitor, Sun, Moon } from 'lucide-react';
 import Papa from 'papaparse';
 
 interface DataManagementViewProps {
   records: BodyRecord[];
   onRefresh: () => void;
+  themeMode: ThemeMode;
+  setThemeMode: (mode: ThemeMode) => void;
 }
 
-export const DataManagementView: React.FC<DataManagementViewProps> = ({ records, onRefresh }) => {
+export const DataManagementView: React.FC<DataManagementViewProps> = ({
+  records,
+  onRefresh,
+  themeMode,
+  setThemeMode,
+}) => {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const registeredParsers = getRegisteredParsers();
@@ -97,11 +105,16 @@ export const DataManagementView: React.FC<DataManagementViewProps> = ({ records,
     <div className="space-y-6 pb-12 max-w-4xl mx-auto">
       
       {/* Privacy Guarantee Card */}
-      <div className="bg-brand-50 dark:bg-brand-950/40 border border-brand-200 dark:border-brand-900 rounded-2xl p-5 flex items-start space-x-3 text-brand-900 dark:text-brand-200">
-        <ShieldCheck className="w-6 h-6 text-brand-600 dark:text-brand-400 flex-shrink-0 mt-0.5" />
+      <div className="bg-gradient-to-r from-blue-50 via-indigo-50/60 to-blue-50 dark:from-slate-900 dark:via-indigo-950/80 dark:to-slate-900 border border-blue-200/80 dark:border-indigo-500/40 rounded-2xl p-5 flex items-start space-x-3.5 shadow-sm dark:shadow-indigo-950/50">
+        <div className="p-2.5 bg-blue-600 dark:bg-indigo-600 text-white rounded-xl flex-shrink-0 mt-0.5 shadow-md shadow-blue-500/20 dark:shadow-indigo-500/30">
+          <ShieldCheck className="w-5 h-5" />
+        </div>
         <div>
-          <h3 className="font-bold text-sm">100% 本地隱私保障 (Local-First Storage)</h3>
-          <p className="text-xs text-brand-700 dark:text-brand-300 mt-0.5 leading-relaxed">
+          <h3 className="font-bold text-sm text-blue-950 dark:text-indigo-100">
+            100% 本地隱私保障
+            <span className="block text-xs font-medium text-blue-700/80 dark:text-indigo-300/80 mt-0.5">(Local-First Storage)</span>
+          </h3>
+          <p className="text-xs text-blue-800/90 dark:text-indigo-200/90 mt-1 leading-relaxed">
             所有資料均純粹儲存在您的瀏覽器 IndexedDB 中，本網站不會上傳任何個人生理數據至遠端伺服器。您可以隨時匯出備份或清空資料。
           </p>
         </div>
@@ -139,10 +152,10 @@ export const DataManagementView: React.FC<DataManagementViewProps> = ({ records,
           />
           <label
             htmlFor="management-csv-input"
-            className="flex items-center justify-center space-x-2 w-full py-4 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl hover:border-brand-500 cursor-pointer transition-colors bg-gray-50/50 dark:bg-slate-900/50"
+            className="flex flex-col sm:flex-row items-center justify-center space-y-1.5 sm:space-y-0 sm:space-x-2 w-full py-6 sm:py-4 px-4 sm:px-6 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl hover:border-brand-500 cursor-pointer transition-colors bg-gray-50/50 dark:bg-slate-900/50 text-center"
           >
-            <Upload className="w-5 h-5 text-brand-500" />
-            <span className="text-sm font-semibold text-gray-700 dark:text-slate-200">
+            <Upload className="w-5 h-5 text-brand-500 flex-shrink-0" />
+            <span className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-slate-200 leading-snug">
               {loading ? '正在解析中...' : '選擇 CSV, Excel (.xlsx/.xls) 或 JSON 檔案進行匯入'}
             </span>
           </label>
@@ -192,6 +205,50 @@ export const DataManagementView: React.FC<DataManagementViewProps> = ({ records,
             <Database className="w-4 h-4" />
             <span>匯出 JSON 備份檔</span>
           </button>
+        </div>
+      </div>
+
+      {/* Theme Preference Settings Card */}
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-100 dark:border-slate-700 shadow-sm space-y-4">
+        <div className="flex items-center space-x-3 border-b border-gray-100 dark:border-slate-700 pb-4">
+          <div className="p-2.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl">
+            <Monitor className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 dark:text-white">主題色彩外觀設定</h3>
+            <p className="text-xs text-gray-500 dark:text-slate-400">自訂顯示模式，或隨時切換重置為跟隨 iOS / 系統自動深淺色</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[
+            { id: 'system', label: '跟隨系統 (System)', desc: '自動匹配 iOS / OS 深淺色', icon: <Monitor className="w-5 h-5 text-brand-500" /> },
+            { id: 'light', label: '淺色模式 (Light)', desc: '固定使用明亮介面', icon: <Sun className="w-5 h-5 text-amber-500" /> },
+            { id: 'dark', label: '深色模式 (Dark)', desc: '固定使用深色護眼介面', icon: <Moon className="w-5 h-5 text-indigo-400" /> },
+          ].map((mode) => (
+            <button
+              key={mode.id}
+              onClick={() => setThemeMode(mode.id as ThemeMode)}
+              className={`p-4 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                themeMode === mode.id
+                  ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-950/30 ring-2 ring-brand-500/20'
+                  : 'border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 bg-gray-50/50 dark:bg-slate-900/50'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                {mode.icon}
+                {themeMode === mode.id && (
+                  <span className="text-[10px] bg-brand-600 text-white px-2 py-0.5 rounded-full font-semibold">
+                    使用中
+                  </span>
+                )}
+              </div>
+              <div>
+                <span className="font-bold text-sm text-gray-900 dark:text-white block">{mode.label}</span>
+                <span className="text-[11px] text-gray-500 dark:text-slate-400 block mt-0.5">{mode.desc}</span>
+              </div>
+            </button>
+          ))}
         </div>
       </div>
 

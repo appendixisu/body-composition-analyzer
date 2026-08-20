@@ -15,7 +15,7 @@ import {
   Bar,
   LabelList,
 } from 'recharts';
-import { TrendingUp, Filter, Eye, CalendarRange } from 'lucide-react';
+import { TrendingUp, Filter, Eye } from 'lucide-react';
 
 interface ChartsViewProps {
   records: BodyRecord[];
@@ -127,13 +127,12 @@ export const ChartsView: React.FC<ChartsViewProps> = ({ records }) => {
           </button>
           <button
             onClick={() => setChartType('weekly')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               chartType === 'weekly'
-                ? 'bg-brand-600 text-white shadow-sm'
-                : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700'
+                ? 'bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-sm'
+                : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
-            <CalendarRange className="w-3.5 h-3.5" />
             <span>每週平均趨勢</span>
           </button>
           <button

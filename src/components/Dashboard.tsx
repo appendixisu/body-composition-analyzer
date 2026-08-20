@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BodyRecord } from '../types/bodyComposition';
-import { calculateSummary, getBmiCategory, getBodyFatCategory, getVisceralFatCategory, calculateWeightLossQuality } from '../services/analytics';
-import { Scale, Flame, Activity, Heart, Calendar, Award, ArrowUpRight, ArrowDownRight, Minus, AlertTriangle, ShieldCheck, Dumbbell, AlertOctagon } from 'lucide-react';
+import { calculateSummary, getBmiCategory, getBodyFatCategory, getVisceralFatCategory, calculateWeightLossQuality, calculateWeightVelocity } from '../services/analytics';
+import { Scale, Flame, Activity, Heart, Calendar, Award, ArrowUpRight, ArrowDownRight, Minus, AlertTriangle, ShieldCheck, Dumbbell, AlertOctagon, Gauge } from 'lucide-react';
 
 interface DashboardProps {
   records: BodyRecord[];
@@ -18,6 +18,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onNavigateTab, on
   const latest = sorted[sorted.length - 1];
 
   const lossQuality = calculateWeightLossQuality(sorted, lossPeriod);
+  const velocity = calculateWeightVelocity(sorted);
 
   const weightSummary = calculateSummary(sorted, 'weight');
   const fatSummary = calculateSummary(sorted, 'bodyFat');
@@ -102,7 +103,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onNavigateTab, on
         {/* Weight Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-gray-100 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-gray-500 dark:text-slate-400">體重 (Weight)</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-slate-400">體重</span>
             <div className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
               <Scale className="w-5 h-5" />
             </div>
@@ -122,7 +123,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onNavigateTab, on
         {/* Body Fat Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-gray-100 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-gray-500 dark:text-slate-400">體脂肪率 (Fat %)</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-slate-400">體脂肪率</span>
             <div className="p-2 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl">
               <Flame className="w-5 h-5" />
             </div>
@@ -147,7 +148,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onNavigateTab, on
         {/* Skeletal Muscle Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-gray-100 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-gray-500 dark:text-slate-400">骨骼肌率 (Muscle %)</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-slate-400">骨骼肌率</span>
             <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl">
               <Activity className="w-5 h-5" />
             </div>
@@ -192,6 +193,86 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onNavigateTab, on
 
       </div>
 
+      {/* 每週體重變化速度分析 Card */}
+      {velocity && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-100 dark:border-slate-700 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-100 dark:border-slate-700 pb-4">
+            <div className="flex items-center space-x-2">
+              <Gauge className="w-5 h-5 text-brand-500" />
+              <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                每週體重變化速度分析
+              </h3>
+            </div>
+            <span className={`px-3 py-1 rounded-full text-xs font-bold text-center self-start sm:self-auto ${velocity.statusBadgeClass}`}>
+              {velocity.statusLabel}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Speed Number Display */}
+            <div className="p-4 rounded-xl bg-gray-50 dark:bg-slate-700/40 flex flex-col justify-center items-center text-center">
+              <span className="text-xs text-gray-500 dark:text-slate-400 block mb-1 font-medium">
+                近週體重變化速率 (週平均)
+              </span>
+              <span className={`text-3xl font-extrabold ${
+                velocity.weeklyRateKg < 0 ? 'text-emerald-600 dark:text-emerald-400' :
+                velocity.weeklyRateKg > 0.2 ? 'text-amber-600 dark:text-amber-400' :
+                'text-sky-600 dark:text-sky-400'
+              }`}>
+                {velocity.ratePerWeekText}
+              </span>
+              <span className="text-xs text-gray-400 dark:text-slate-400 mt-1.5">
+                (相當於每月變化約 {velocity.monthlyRateKg > 0 ? '+' : ''}{velocity.monthlyRateKg} kg)
+              </span>
+            </div>
+
+            {/* Velocity Spectrum Bar */}
+            <div className="lg:col-span-2 space-y-3 flex flex-col justify-center">
+              <div className="flex justify-between items-center text-xs text-gray-500 dark:text-slate-400 font-semibold">
+                <span>速度速率分佈基準</span>
+                <span>單位: kg / 週</span>
+              </div>
+
+              {/* Spectrum Range Bar */}
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 text-[11px] text-center font-medium">
+                <div className={`p-2 rounded-lg border transition-all ${velocity.statusRating === 'too_fast_loss' ? 'bg-rose-500 text-white font-bold ring-2 ring-rose-500/50' : 'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-900/60'}`}>
+                  <span className="block font-bold">瘦太快</span>
+                  <span className="block text-[9px] opacity-80 mt-0.5">&lt; -1.0kg</span>
+                </div>
+                <div className={`p-2 rounded-lg border transition-all ${velocity.statusRating === 'healthy_loss' ? 'bg-emerald-500 text-white font-bold ring-2 ring-emerald-500/50' : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/60'}`}>
+                  <span className="block font-bold">黃金減速</span>
+                  <span className="block text-[9px] opacity-80 mt-0.5">-0.5 ~ -1.0</span>
+                </div>
+                <div className={`p-2 rounded-lg border transition-all ${velocity.statusRating === 'mild_loss' ? 'bg-teal-500 text-white font-bold ring-2 ring-teal-500/50' : 'bg-teal-50 text-teal-800 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-900/60'}`}>
+                  <span className="block font-bold">溫和減速</span>
+                  <span className="block text-[9px] opacity-80 mt-0.5">-0.2 ~ -0.5</span>
+                </div>
+                <div className={`p-2 rounded-lg border transition-all ${velocity.statusRating === 'maintain' ? 'bg-sky-500 text-white font-bold ring-2 ring-sky-500/50' : 'bg-sky-50 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-900/60'}`}>
+                  <span className="block font-bold">平穩維持</span>
+                  <span className="block text-[9px] opacity-80 mt-0.5">±0.2kg</span>
+                </div>
+                <div className={`p-2 rounded-lg border transition-all ${velocity.statusRating === 'healthy_gain' ? 'bg-indigo-500 text-white font-bold ring-2 ring-indigo-500/50' : 'bg-indigo-50 text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/60'}`}>
+                  <span className="block font-bold">健康增肌</span>
+                  <span className="block text-[9px] opacity-80 mt-0.5">+0.2 ~ +0.5</span>
+                </div>
+                <div className={`p-2 rounded-lg border transition-all ${velocity.statusRating === 'too_fast_gain' ? 'bg-amber-500 text-white font-bold ring-2 ring-amber-500/50' : 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-900/60'}`}>
+                  <span className="block font-bold">胖太快</span>
+                  <span className="block text-[9px] opacity-80 mt-0.5">&gt; +0.5kg</span>
+                </div>
+              </div>
+
+              {/* Health Advice Text */}
+              <p className="text-xs text-gray-600 dark:text-slate-300 pt-1 leading-relaxed">
+                💡 {velocity.advice}
+              </p>
+
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* 減重品質與肌肉過度流失分析 Card */}
       {lossQuality && (
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-100 dark:border-slate-700 shadow-sm space-y-4">
@@ -200,7 +281,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onNavigateTab, on
               <div className="flex items-center space-x-2">
                 <Dumbbell className="w-5 h-5 text-indigo-500" />
                 <h3 className="font-bold text-gray-900 dark:text-white text-base">
-                  減重品質與肌肉過度流失分析 (Fat vs Muscle Loss Analysis)
+                  減重品質與肌肉過度流失分析
                 </h3>
               </div>
               <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
@@ -266,7 +347,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onNavigateTab, on
                 <div className="flex justify-between items-center text-xs font-semibold mb-1.5">
                   <span className="text-gray-700 dark:text-slate-200 flex items-center">
                     <ShieldCheck className="w-4 h-4 text-emerald-500 mr-1" />
-                    減脂佔比 (Fat Loss Share)
+                    減脂佔比
                   </span>
                   <span className="text-emerald-600 dark:text-emerald-400 font-bold">
                     {lossQuality.isWeightDecreased ? `${lossQuality.fatLossPercentage}%` : '-'}
@@ -284,7 +365,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onNavigateTab, on
                 <div className="flex justify-between items-center text-xs font-semibold mb-1.5">
                   <span className="text-gray-700 dark:text-slate-200 flex items-center">
                     <AlertOctagon className={`w-4 h-4 mr-1 ${lossQuality.muscleLossPercentage > 50 ? 'text-rose-500 animate-pulse' : 'text-amber-500'}`} />
-                    掉肌 / 減肌佔比 (Muscle Loss Share)
+                    減肌佔比
                   </span>
                   <span className={`font-bold ${lossQuality.muscleLossPercentage > 50 ? 'text-rose-600 dark:text-rose-400 font-extrabold' : 'text-amber-600 dark:text-amber-400'}`}>
                     {lossQuality.isWeightDecreased ? `${lossQuality.muscleLossPercentage}%` : '0%'}
@@ -298,17 +379,47 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onNavigateTab, on
                 </div>
               </div>
 
+              {/* Quality Spectrum Benchmark Bar */}
+              <div className="space-y-2 pt-1">
+                <div className="flex justify-between items-center text-xs text-gray-500 dark:text-slate-400 font-semibold">
+                  <span>減重品質分佈基準</span>
+                  <span>依週平均減脂/減肌比例</span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px] text-center font-medium">
+                  <div className={`p-2 rounded-lg border transition-all ${lossQuality.qualityRating === 'excellent' && lossQuality.isWeightDecreased ? 'bg-emerald-500 text-white font-bold ring-2 ring-emerald-500/50' : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/60'}`}>
+                    <span className="block font-bold">優質健康減脂</span>
+                    <span className="block text-[9px] opacity-80 mt-0.5">減脂 &ge; 70% (肌流失 &le; 20%)</span>
+                  </div>
+
+                  <div className={`p-2 rounded-lg border transition-all ${lossQuality.qualityRating === 'moderate' && lossQuality.isWeightDecreased ? 'bg-amber-500 text-white font-bold ring-2 ring-amber-500/50' : 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-900/60'}`}>
+                    <span className="block font-bold">平穩普通減重</span>
+                    <span className="block text-[9px] opacity-80 mt-0.5">減脂 50% ~ 70%</span>
+                  </div>
+
+                  <div className={`p-2 rounded-lg border transition-all ${lossQuality.qualityRating === 'warning' && lossQuality.isWeightDecreased ? 'bg-rose-500 text-white font-bold ring-2 ring-rose-500/50' : 'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-900/60'}`}>
+                    <span className="block font-bold">肌少 / 肌肉流失</span>
+                    <span className="block text-[9px] opacity-80 mt-0.5">減肌流失 &gt; 50%</span>
+                  </div>
+
+                  <div className={`p-2 rounded-lg border transition-all ${!lossQuality.isWeightDecreased ? 'bg-sky-500 text-white font-bold ring-2 ring-sky-500/50' : 'bg-sky-50 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-900/60'}`}>
+                    <span className="block font-bold">體重增加 / 維持</span>
+                    <span className="block text-[9px] opacity-80 mt-0.5">體重未下降</span>
+                  </div>
+                </div>
+              </div>
+
               {/* Status Badge & Advice */}
-              <div className={`p-3.5 rounded-xl border text-xs leading-relaxed flex items-start space-x-2.5 ${
+              <div className={`p-3.5 rounded-xl border text-xs leading-relaxed flex flex-col sm:flex-row sm:items-start space-y-2 sm:space-y-0 sm:space-x-2.5 ${
                 lossQuality.qualityRating === 'excellent' ? 'bg-emerald-50 border-emerald-200 text-emerald-900 dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-200' :
                 lossQuality.qualityRating === 'warning' ? 'bg-rose-50 border-rose-200 text-rose-900 dark:bg-rose-900/30 dark:border-rose-800 dark:text-rose-200' :
                 lossQuality.qualityRating === 'moderate' ? 'bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-900/30 dark:border-amber-800 dark:text-amber-200' :
                 'bg-sky-50 border-sky-200 text-sky-900 dark:bg-sky-900/30 dark:border-sky-800 dark:text-sky-200'
               }`}>
-                <span className={`px-2 py-0.5 rounded font-bold text-[11px] flex-shrink-0 ${lossQuality.statusBadgeClass}`}>
+                <span className={`px-2 py-0.5 rounded font-bold text-[11px] flex-shrink-0 inline-block self-start ${lossQuality.statusBadgeClass}`}>
                   {lossQuality.statusLabel}
                 </span>
-                <span className="font-medium">{lossQuality.advice}</span>
+                <span className="font-medium leading-relaxed">{lossQuality.advice}</span>
               </div>
 
             </div>
@@ -325,7 +436,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onNavigateTab, on
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-gray-900 dark:text-white flex items-center space-x-2">
               <Award className="w-5 h-5 text-brand-500" />
-              <span>各期間進度與累積變化 (Period Progress)</span>
+              <span>各期間進度與累積變化</span>
             </h3>
             <span className="text-xs text-gray-400">共 {sorted.length} 筆歷史紀錄</span>
           </div>
