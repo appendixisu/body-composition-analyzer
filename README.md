@@ -20,8 +20,8 @@
 - 🦾 **歐姆龍部位細分圖解 (Segmental Body Analysis)**：
   - 視覺化展示 **雙臂 (Arms)**、**身軀 (Trunk)** 與 **雙腳 (Legs)** 的骨骼肌率及皮下脂肪率。
 - 🧩 **模組化解析器系統 (Strategy Pattern)**：
-  - 內建 `OmronCsvParser`（針對歐姆龍格式）與 `GenericCsvParser`（對應通用 CSV 欄位）。
-  - 支援 CSV 檔案拖曳上傳、欄位自動識別與寫入。
+  - 內建 `OmronCsvParser`（標準體組成 CSV）、`OkokExcelParser`（『OKOK-國際版』.xlsx/.xls 試算表）、與 `GenericCsvParser`（通用格式）。
+  - 支援 CSV 與 Excel 試算表檔案拖曳上傳、標頭自動識別與寫入。
 - 📱 **全平台響應式 UX 設計**：
   - **手機端 (Mobile)**：配備底部導覽列 (Bottom Nav Bar)、大字體卡片與觸控優化圖表。
   - **桌面端 (Desktop)**：多欄式數據儀表板、彈性圖表與歷史數據管理。

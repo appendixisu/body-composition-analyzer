@@ -8,10 +8,15 @@
       <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
       <stop offset="100%" stop-color="#ffffff" stop-opacity="1" />
     </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0284c7" flood-opacity="0.3" />
+    </filter>
   </defs>
 
-  <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#bgGrad)" />
+  <!-- Rounded Square Container with Blue-to-Cyan Gradient -->
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#bgGrad)" filter="url(#shadow)" />
 
+  <!-- Activity Pulse Graphic -->
   <path
     d="M 110 256 L 180 256 L 210 180 L 256 340 L 302 210 L 332 256 L 402 256"
     fill="none"
@@ -21,5 +26,6 @@
     stroke-linejoin="round"
   />
 
+  <!-- Enlarged Orange Accent Pulse Dot (r=28) -->
   <circle cx="302" cy="210" r="28" fill="#f97316" stroke="#ffffff" stroke-width="5" />
 </svg>

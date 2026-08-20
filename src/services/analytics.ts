@@ -49,6 +49,13 @@ export interface WeeklyAggregatePoint {
   bmiAvg: number;
   bodyAgeAvg: number;
   recordCount: number;
+
+  // 相較前一週相差數值與百分比 (Week over Week)
+  weightChangeVsPrevWeek?: number;        // 體重公斤差 (kg), e.g. -1.2
+  weightChangePercentVsPrevWeek?: number; // 體重百分比差 (%), e.g. -2.04%
+  fatRateChangeVsPrevWeek?: number;       // 體脂率百分點差 (%), e.g. -0.5%
+  fatRateChangePercentVsPrevWeek?: number;// 體脂率相對百分比差 (%), e.g. -1.8%
+  muscleRateChangeVsPrevWeek?: number;    // 骨骼肌率百分點差 (%), e.g. +0.3%
 }
 
 export function prepareWeeklyData(records: BodyRecord[]): WeeklyAggregatePoint[] {
@@ -112,7 +119,31 @@ export function prepareWeeklyData(records: BodyRecord[]): WeeklyAggregatePoint[]
     });
   });
 
-  return result.sort((a, b) => a.weekKey.localeCompare(b.weekKey));
+  const sortedResult = result.sort((a, b) => a.weekKey.localeCompare(b.weekKey));
+
+  // 計算週與週之間 (WoW) 的公斤差與百分比比率
+  for (let i = 0; i < sortedResult.length; i++) {
+    const curr = sortedResult[i];
+    if (i > 0) {
+      const prev = sortedResult[i - 1];
+
+      const wDiff = parseFloat((curr.weightAvg - prev.weightAvg).toFixed(2));
+      const wPct = prev.weightAvg > 0 ? parseFloat(((wDiff / prev.weightAvg) * 100).toFixed(2)) : 0;
+
+      const fDiff = parseFloat((curr.bodyFatAvg - prev.bodyFatAvg).toFixed(1));
+      const fPct = prev.bodyFatAvg > 0 ? parseFloat(((fDiff / prev.bodyFatAvg) * 100).toFixed(2)) : 0;
+
+      const mDiff = parseFloat((curr.skeletalMuscleAvg - prev.skeletalMuscleAvg).toFixed(1));
+
+      curr.weightChangeVsPrevWeek = wDiff;
+      curr.weightChangePercentVsPrevWeek = wPct;
+      curr.fatRateChangeVsPrevWeek = fDiff;
+      curr.fatRateChangePercentVsPrevWeek = fPct;
+      curr.muscleRateChangeVsPrevWeek = mDiff;
+    }
+  }
+
+  return sortedResult;
 }
 
 export function prepareChartData(records: BodyRecord[]): ChartDataPoint[] {
@@ -237,33 +268,31 @@ export function calculateWeightLossQuality(
 ): WeightLossQuality | null {
   if (!records || records.length < 2) return null;
 
-  const sorted = [...records].sort((a, b) => a.timestamp - b.timestamp);
-  const latest = sorted[sorted.length - 1];
+  // 使用週平均數據
+  const weeklyData = prepareWeeklyData(records);
+  if (!weeklyData || weeklyData.length === 0) return null;
 
-  let baseline = sorted[0];
-  let periodLabel = '全期間累積';
+  const latestWeek = weeklyData[weeklyData.length - 1];
+  let baselineWeek = weeklyData[0];
+  let periodLabel = '全期間累積 (週平均)';
 
   if (period === '7d') {
-    const ts7d = latest.timestamp - 7 * 24 * 60 * 60 * 1000;
-    baseline = findClosestRecordBefore(sorted, ts7d) || sorted[0];
-    periodLabel = '近 7 日';
+    // 與前一週比較
+    baselineWeek = weeklyData.length >= 2 ? weeklyData[weeklyData.length - 2] : weeklyData[0];
+    periodLabel = '近 1 週 (與前週相比)';
   } else if (period === '30d') {
-    const ts30d = latest.timestamp - 30 * 24 * 60 * 60 * 1000;
-    baseline = findClosestRecordBefore(sorted, ts30d) || sorted[0];
-    periodLabel = '近 30 日';
+    // 與約 4 週前比較
+    const targetIdx = Math.max(0, weeklyData.length - 5);
+    baselineWeek = weeklyData[targetIdx];
+    periodLabel = '近 4 週 (與一月前相比)';
   }
 
-  const weightChangeKg = parseFloat((latest.weight - baseline.weight).toFixed(2));
-  
-  const latestFatKg = latest.fatMass || (latest.weight * latest.bodyFat) / 100;
-  const baseFatKg = baseline.fatMass || (baseline.weight * baseline.bodyFat) / 100;
-  const fatMassChangeKg = parseFloat((latestFatKg - baseFatKg).toFixed(2));
+  // 基於週平均計算變化量
+  const weightChangeKg = parseFloat((latestWeek.weightAvg - baselineWeek.weightAvg).toFixed(2));
+  const fatMassChangeKg = parseFloat((latestWeek.fatMassAvg - baselineWeek.fatMassAvg).toFixed(2));
+  const muscleMassChangeKg = parseFloat((latestWeek.skeletalMuscleMassAvg - baselineWeek.skeletalMuscleMassAvg).toFixed(2));
 
-  const latestMuscleKg = latest.skeletalMuscleMass || (latest.weight * latest.skeletalMuscle) / 100;
-  const baseMuscleKg = baseline.skeletalMuscleMass || (baseline.weight * baseline.skeletalMuscle) / 100;
-  const muscleMassChangeKg = parseFloat((latestMuscleKg - baseMuscleKg).toFixed(2));
-
-  const isWeightDecreased = weightChangeKg < -0.2; // 減重超過 0.2kg
+  const isWeightDecreased = weightChangeKg < -0.1; // 週平均體重下降超過 0.1kg
 
   if (!isWeightDecreased) {
     return {
@@ -275,20 +304,20 @@ export function calculateWeightLossQuality(
       muscleLossPercentage: 0,
       isWeightDecreased: false,
       qualityRating: 'gaining',
-      statusLabel: weightChangeKg > 0.2 ? '體重增加 / 增肌增脂期' : '體重持平維持期',
+      statusLabel: weightChangeKg > 0.1 ? '週平均體重增加 (增重/增肌期)' : '週平均體重持平維持',
       statusBadgeClass: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300',
-      advice: '目前體重未呈現明顯下降。若目標為增肌，請持續觀察肌肉重量變化；若目標為減脂，建議檢視每日熱量攝取。'
+      advice: `週平均體重未呈現明顯下滑 (${baselineWeek.weekLabel} 週均 ${baselineWeek.weightAvg}kg ➜ ${latestWeek.weekLabel} 週均 ${latestWeek.weightAvg}kg)。若目標為增肌，請關注肌肉量變化；若目標為減脂，請檢視每日熱量。`
     };
   }
 
-  const weightLost = Math.abs(weightChangeKg); // 減掉的總公斤數 (正數)
-  const fatLost = fatMassChangeKg < 0 ? Math.abs(fatMassChangeKg) : 0; // 減掉的脂肪公斤數
-  const muscleLost = muscleMassChangeKg < 0 ? Math.abs(muscleMassChangeKg) : 0; // 減掉的肌肉公斤數
+  const weightLost = Math.abs(weightChangeKg); // 減掉的週平均公斤數
+  const fatLost = fatMassChangeKg < 0 ? Math.abs(fatMassChangeKg) : 0;
+  const muscleLost = muscleMassChangeKg < 0 ? Math.abs(muscleMassChangeKg) : 0;
 
   const fatLossPercentage = Math.min(100, Math.max(0, Math.round((fatLost / weightLost) * 100)));
   const muscleLossPercentage = Math.min(100, Math.max(0, Math.round((muscleLost / weightLost) * 100)));
 
-  // 評估減重品質
+  // 評估週平均減重品質
   if (muscleMassChangeKg >= 0 || muscleLossPercentage <= 20 || fatLossPercentage >= 70) {
     return {
       periodLabel,
@@ -299,9 +328,9 @@ export function calculateWeightLossQuality(
       muscleLossPercentage,
       isWeightDecreased: true,
       qualityRating: 'excellent',
-      statusLabel: '優質健康減脂 (肌肉留存良好)',
+      statusLabel: '週平均：優質健康減脂 (肌肉留存良好)',
       statusBadgeClass: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
-      advice: `極佳！在減掉的 ${weightLost.toFixed(1)} kg 體重中，有 ${fatLossPercentage}% 為脂肪量。肌肉維持非常理想，能有效防止基礎代謝率下滑！`
+      advice: `週平均分析極佳！在週平均減掉的 ${weightLost.toFixed(1)} kg 體重中，有 ${fatLossPercentage}% 為脂肪減少 (${fatLost.toFixed(1)} kg)。肌肉量平穩留存，能有效防止基礎代謝率下滑！`
     };
   } else if (fatLossPercentage >= 50 && muscleLossPercentage <= 50) {
     return {
@@ -313,9 +342,9 @@ export function calculateWeightLossQuality(
       muscleLossPercentage,
       isWeightDecreased: true,
       qualityRating: 'moderate',
-      statusLabel: '平穩減重 (微幅肌肉流失)',
+      statusLabel: '週平均：平穩減重 (微幅肌肉流失)',
       statusBadgeClass: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
-      advice: `減重進度穩定，但減去的重量中有 ${muscleLossPercentage}% (${muscleLost.toFixed(1)} kg) 來自骨骼肌。建議適當提高蛋白質攝取並增加阻力訓練。`
+      advice: `週平均減重進度穩定，但週平均減去的重量中有 ${muscleLossPercentage}% (${muscleLost.toFixed(1)} kg) 來自骨骼肌流失。建議適當提高蛋白質攝取與重量訓練。`
     };
   } else {
     return {
@@ -327,9 +356,9 @@ export function calculateWeightLossQuality(
       muscleLossPercentage,
       isWeightDecreased: true,
       qualityRating: 'warning',
-      statusLabel: '警告：肌肉過度流失！(肌少/代謝下降風險)',
+      statusLabel: '週平均警告：肌肉流失過多！(肌少/代謝下降風險)',
       statusBadgeClass: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300',
-      advice: `警告！在減掉的 ${weightLost.toFixed(1)} kg 體重中，肌肉流失高達 ${muscleLossPercentage}% (${muscleLost.toFixed(1)} kg)！這會導致基礎代謝顯著下滑與復胖風險。請切勿極端節食，並務必大幅增加蛋白質攝取與重量訓練。`
+      advice: `週平均分析警告！在週平均減掉的 ${weightLost.toFixed(1)} kg 體重中，肌肉流失佔比高達 ${muscleLossPercentage}% (${muscleLost.toFixed(1)} kg)！這會導致基礎代謝顯著下滑。請避免極端節食，並補充蛋白質與重量訓練。`
     };
   }
 }

@@ -37,15 +37,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             
             {/* Logo */}
             <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-cyan-400 flex items-center justify-center text-white shadow-lg shadow-brand-500/20">
-                <Activity className="w-6 h-6" />
-              </div>
+              <img
+                src="/logo.svg"
+                alt="Body Composition Analyzer Logo"
+                className="w-10 h-10 rounded-xl shadow-md shadow-brand-500/20 hover:scale-105 transition-transform"
+              />
               <div>
                 <h1 className="font-bold text-lg text-gray-900 dark:text-white leading-tight">
                   體組成數據分析
                 </h1>
                 <p className="text-xs text-gray-500 dark:text-slate-400">
-                  Omron & Body Composition Analytics
+                  Body Composition & Health Analytics
                 </p>
               </div>
             </div>

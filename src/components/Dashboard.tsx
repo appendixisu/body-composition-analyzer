@@ -204,7 +204,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onNavigateTab, on
                 </h3>
               </div>
               <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                追蹤減掉的公斤數中「脂肪」與「肌肉」之比例，防止肌肉過度流失與代謝下降
+                基於「週平均聚合法」追蹤減掉公斤數中脂肪與肌肉之比例
               </p>
             </div>
 
@@ -220,7 +220,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onNavigateTab, on
                       : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
-                  {p === 'total' ? '全期間累積' : p === '30d' ? '近 30 日' : '近 7 日'}
+                  {p === 'total' ? '全期間週平均' : p === '30d' ? '近 4 週 (月比)' : '近 1 週 (週比)'}
                 </button>
               ))}
             </div>

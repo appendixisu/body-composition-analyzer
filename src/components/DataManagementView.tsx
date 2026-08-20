@@ -123,15 +123,15 @@ export const DataManagementView: React.FC<DataManagementViewProps> = ({ records,
             <Upload className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-bold text-gray-900 dark:text-white">匯入體組成 CSV 檔案</h3>
-            <p className="text-xs text-gray-500 dark:text-slate-400">上傳新的歐姆龍 App 匯出檔或健康裝置紀錄</p>
+            <h3 className="font-bold text-gray-900 dark:text-white">匯入體組成檔案</h3>
+            <p className="text-xs text-gray-500 dark:text-slate-400">上傳體組成數據檔 (.csv / .xlsx / .xls) 或健康裝置紀錄</p>
           </div>
         </div>
 
         <div className="space-y-3">
           <input
             type="file"
-            accept=".csv"
+            accept=".csv,.xlsx,.xls,.json"
             onChange={(e) => e.target.files && e.target.files[0] && handleFileUpload(e.target.files[0])}
             id="management-csv-input"
             className="hidden"
@@ -143,7 +143,7 @@ export const DataManagementView: React.FC<DataManagementViewProps> = ({ records,
           >
             <Upload className="w-5 h-5 text-brand-500" />
             <span className="text-sm font-semibold text-gray-700 dark:text-slate-200">
-              {loading ? '正在解析中...' : '選擇 CSV 檔案進行匯入'}
+              {loading ? '正在解析中...' : '選擇 CSV, Excel (.xlsx/.xls) 或 JSON 檔案進行匯入'}
             </span>
           </label>
 
@@ -181,7 +181,7 @@ export const DataManagementView: React.FC<DataManagementViewProps> = ({ records,
             className="flex items-center justify-center space-x-2 w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold transition-colors"
           >
             <Download className="w-4 h-4" />
-            <span>匯出歐姆龍相容 CSV 檔</span>
+            <span>匯出標準體組成 CSV 檔</span>
           </button>
 
           <button

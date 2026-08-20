@@ -66,7 +66,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onDataLoaded, onOpenAddM
           開始分析您的體組成數據
         </h2>
         <p className="text-gray-500 dark:text-slate-400 text-sm max-w-md mx-auto mb-8">
-          目前本地端尚無體重紀錄。請上傳從歐姆龍 App 或健康裝置匯出的 CSV 資料檔，或手動新增第一筆資料。
+          目前本地端尚無體重紀錄。請上傳體組成與健康裝置匯出的 CSV 資料檔，或手動新增第一筆資料。
         </p>
 
         {/* Drag and Drop Zone */}
@@ -82,7 +82,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onDataLoaded, onOpenAddM
         >
           <input
             type="file"
-            accept=".csv"
+            accept=".csv,.xlsx,.xls,.json"
             onChange={onFileInputChange}
             className="hidden"
             id="csv-file-input"
@@ -91,10 +91,10 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onDataLoaded, onOpenAddM
           <label htmlFor="csv-file-input" className="cursor-pointer block">
             <FileText className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-3" />
             <span className="font-semibold text-gray-700 dark:text-slate-200 block text-base mb-1">
-              點擊選擇 CSV 檔案 或 拖曳檔案至此
+              點擊選擇 CSV / Excel / JSON 檔案 或 拖曳檔案至此
             </span>
             <span className="text-xs text-gray-400 dark:text-slate-500">
-              支援歐姆龍 (BodyComposition_*.csv) 及通用 CSV 格式
+              支援 CSV、OKOK 國際版 (.xlsx/.xls) 及本站 JSON 完整備份檔
             </span>
           </label>
         </div>

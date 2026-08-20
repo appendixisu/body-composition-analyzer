@@ -1,9 +1,9 @@
 import { BodyRecord, IBodyDataParser, ParseResult } from '../../types/bodyComposition';
 
 export class OmronCsvParser implements IBodyDataParser {
-  name = '歐姆龍 (Omron Connect)';
+  name = 'Omron Connect (CSV)';
   id = 'omron';
-  description = '支援歐姆龍 App 導出的體組成 CSV 資料檔 (包含雙臂、軀幹、雙腳細部數據)';
+  description = '支援 Omron Connect App 導出的體組成 CSV 資料檔 (包含雙臂、軀幹、雙腳細部數據)';
 
   canParse(headers: string[]): boolean {
     const cleanHeaders = headers.map(h => h.trim().replace(/^"|"$/g, ''));

@@ -34,7 +34,7 @@ export const SegmentalView: React.FC<SegmentalViewProps> = ({ records }) => {
         <div>
           <div className="flex items-center space-x-2 text-brand-600 dark:text-brand-400 text-xs font-semibold mb-1">
             <Layers className="w-4 h-4" />
-            <span>歐姆龍部位量測分析 (Segmental Body Analysis)</span>
+            <span>部位量測分析 (Segmental Body Analysis)</span>
           </div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">
             部位骨骼肌率與皮下脂肪率圖解

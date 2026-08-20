@@ -1,9 +1,9 @@
 import { BodyRecord, IBodyDataParser, ParseResult } from '../../types/bodyComposition';
 
 export class GenericCsvParser implements IBodyDataParser {
-  name = '通用 / 自訂體重 CSV 格式';
+  name = '自訂體重 CSV 格式';
   id = 'generic';
-  description = '支援常規欄位 (如 Date/日期, Weight/體重, BodyFat/體脂率, BMI 等) 的 CSV 檔';
+  description = '支援欄位 (如 Date/日期, Weight/體重, BodyFat/體脂率, BMI 等) 的 CSV 檔';
 
   canParse(headers: string[]): boolean {
     const lowerHeaders = headers.map(h => h.toLowerCase().trim().replace(/^"|"$/g, ''));

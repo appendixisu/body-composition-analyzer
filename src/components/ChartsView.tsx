@@ -13,6 +13,7 @@ import {
   AreaChart,
   Area,
   Bar,
+  LabelList,
 } from 'recharts';
 import { TrendingUp, Filter, Eye, CalendarRange } from 'lucide-react';
 
@@ -53,8 +54,8 @@ export const ChartsView: React.FC<ChartsViewProps> = ({ records }) => {
     if (active && payload && payload.length) {
       const extra = payload[0]?.payload;
       return (
-        <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-3 border border-gray-200 dark:border-slate-700 rounded-xl shadow-xl text-xs space-y-1">
-          <div className="font-semibold text-gray-800 dark:text-slate-200 border-b border-gray-100 dark:border-slate-700 pb-1 mb-1 flex items-center justify-between space-x-3">
+        <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-3 border border-gray-200 dark:border-slate-700 rounded-xl shadow-xl text-xs space-y-1.5 min-w-[220px]">
+          <div className="font-semibold text-gray-800 dark:text-slate-200 border-b border-gray-100 dark:border-slate-700 pb-1.5 mb-1 flex items-center justify-between space-x-3">
             <span>{label}</span>
             {extra?.recordCount !== undefined && (
               <span className="text-[10px] bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300 px-1.5 py-0.5 rounded font-normal">
@@ -62,17 +63,44 @@ export const ChartsView: React.FC<ChartsViewProps> = ({ records }) => {
               </span>
             )}
           </div>
-          {payload.map((entry: any, index: number) => (
-            <div key={`item-${index}`} className="flex items-center justify-between space-x-3">
-              <span className="flex items-center space-x-1.5" style={{ color: entry.color }}>
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></span>
-                <span>{entry.name}:</span>
-              </span>
-              <span className="font-bold text-gray-900 dark:text-white">
-                {entry.value} {entry.unit || ''}
-              </span>
-            </div>
-          ))}
+          {payload.map((entry: any, index: number) => {
+            let changeText = '';
+            if (entry.dataKey === 'weightAvg' && extra?.weightChangePercentVsPrevWeek !== undefined) {
+              const diff = extra.weightChangeVsPrevWeek;
+              const pct = extra.weightChangePercentVsPrevWeek;
+              changeText = `${diff > 0 ? '+' : ''}${diff}kg (${pct > 0 ? '+' : ''}${pct}%)`;
+            } else if (entry.dataKey === 'bodyFatAvg' && extra?.fatRateChangePercentVsPrevWeek !== undefined) {
+              const diff = extra.fatRateChangeVsPrevWeek;
+              const pct = extra.fatRateChangePercentVsPrevWeek;
+              changeText = `${diff > 0 ? '+' : ''}${diff}%p (${pct > 0 ? '+' : ''}${pct}%)`;
+            } else if (entry.dataKey === 'skeletalMuscleAvg' && extra?.muscleRateChangeVsPrevWeek !== undefined) {
+              const diff = extra.muscleRateChangeVsPrevWeek;
+              changeText = `${diff > 0 ? '+' : ''}${diff}%p`;
+            }
+
+            return (
+              <div key={`item-${index}`} className="flex items-center justify-between space-x-3">
+                <span className="flex items-center space-x-1.5" style={{ color: entry.color }}>
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></span>
+                  <span>{entry.name}:</span>
+                </span>
+                <div className="text-right">
+                  <span className="font-bold text-gray-900 dark:text-white">
+                    {entry.value} {entry.unit || ''}
+                  </span>
+                  {changeText && (
+                    <span className={`block text-[10px] font-semibold ${
+                      changeText.includes('-') 
+                        ? (entry.dataKey === 'skeletalMuscleAvg' ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400')
+                        : (entry.dataKey === 'skeletalMuscleAvg' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500')
+                    }`}>
+                      較前週: {changeText}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       );
     }
@@ -99,14 +127,14 @@ export const ChartsView: React.FC<ChartsViewProps> = ({ records }) => {
           </button>
           <button
             onClick={() => setChartType('weekly')}
-            className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               chartType === 'weekly'
-                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                ? 'bg-brand-600 text-white shadow-sm'
+                : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700'
             }`}
           >
             <CalendarRange className="w-3.5 h-3.5" />
-            <span>每週平均 (抗BIA波動)</span>
+            <span>每週平均趨勢</span>
           </button>
           <button
             onClick={() => setChartType('balance')}
@@ -187,7 +215,7 @@ export const ChartsView: React.FC<ChartsViewProps> = ({ records }) => {
             <TrendingUp className="w-5 h-5 text-brand-500" />
             <h3 className="font-bold text-gray-900 dark:text-white text-base">
               {chartType === 'main' && '每日體重 (kg) 與 體脂肪率 (%) 趨勢'}
-              {chartType === 'weekly' && '每週平均體重與體脂率趨勢 (週聚合法，有效消除 BIA 水份與雜訊波動)'}
+              {chartType === 'weekly' && '每週平均體重與體脂率趨勢 (週聚合法)'}
               {chartType === 'balance' && '肌肉量 (kg) vs 脂肪量 (kg) 淨重量變化'}
               {chartType === 'segmental' && '雙臂、軀幹、雙腳 部位細部變化 (Segmental)'}
               {chartType === 'bmi' && 'BMI 體質指數 與 身體年齡變化 (Years)'}
@@ -212,8 +240,48 @@ export const ChartsView: React.FC<ChartsViewProps> = ({ records }) => {
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ paddingTop: 15, fontSize: 12 }} />
 
-                <Bar yAxisId="left" dataKey="weightAvg" name="週平均體重" unit="kg" fill="#0284c7" fillOpacity={0.25} stroke="#0284c7" radius={[4, 4, 0, 0]} />
-                <Line yAxisId="left" type="monotone" dataKey="weightAvg" name="週體重趨勢" unit="kg" stroke="#0284c7" strokeWidth={2.5} dot={{ r: 4, fill: '#0284c7' }} />
+                <Bar yAxisId="left" dataKey="weightAvg" name="週平均體重" unit="kg" fill="#0284c7" fillOpacity={0.15} stroke="#0284c7" radius={[4, 4, 0, 0]} />
+                <Line yAxisId="left" type="monotone" dataKey="weightAvg" name="週體重趨勢" unit="kg" stroke="#0284c7" strokeWidth={2.5} dot={{ r: 5, fill: '#0284c7' }}>
+                  <LabelList
+                    content={(props: any) => {
+                      const { x, y, index } = props;
+                      const item = weeklyData[index];
+                      if (!item || item.weightChangePercentVsPrevWeek === undefined) return null;
+
+                      const pct = item.weightChangePercentVsPrevWeek;
+                      const isDecrease = pct < 0;
+                      const isZero = pct === 0;
+                      const text = isZero ? '0%' : `${pct > 0 ? '+' : ''}${pct}%`;
+                      const color = isDecrease ? '#047857' : isZero ? '#64748b' : '#b91c1c';
+                      const bg = isDecrease ? '#dcfce7' : isZero ? '#f1f5f9' : '#fee2e2';
+
+                      return (
+                        <g transform={`translate(${x},${y - 16})`}>
+                          <rect
+                            x="-24"
+                            y="-11"
+                            width="48"
+                            height="16"
+                            rx="4"
+                            fill={bg}
+                            stroke={color}
+                            strokeWidth="1"
+                          />
+                          <text
+                            x="0"
+                            y="1"
+                            fill={color}
+                            textAnchor="middle"
+                            fontSize="10"
+                            fontWeight="bold"
+                          >
+                            {text}
+                          </text>
+                        </g>
+                      );
+                    }}
+                  />
+                </Line>
                 <Line yAxisId="right" type="monotone" dataKey="bodyFatAvg" name="週平均體脂率" unit="%" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 4, fill: '#f59e0b' }} />
                 <Line yAxisId="right" type="monotone" dataKey="skeletalMuscleAvg" name="週平均骨骼肌率" unit="%" stroke="#10b981" strokeWidth={2} dot={{ r: 3, fill: '#10b981' }} />
               </ComposedChart>
