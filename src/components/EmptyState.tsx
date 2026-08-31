@@ -1,40 +1,88 @@
 import React, { useState } from 'react';
-import { Upload, FileText, PlusCircle, AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Upload, FileText, PlusCircle, AlertCircle, CheckCircle2, ShieldCheck, X } from 'lucide-react';
 import { parseCsvFile, getRegisteredParsers } from '../services/parsers/parserFactory';
 import { bulkAddRecords } from '../services/db';
+import { ToastNotification } from '../App';
 
 interface EmptyStateProps {
   onDataLoaded: () => void;
   onOpenAddModal: () => void;
+  onNotify?: (toast: ToastNotification) => void;
 }
 
-export const EmptyState: React.FC<EmptyStateProps> = ({ onDataLoaded, onOpenAddModal }) => {
+export const EmptyState: React.FC<EmptyStateProps> = ({ onDataLoaded, onOpenAddModal, onNotify }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; title: string; message: string; formatName?: string; count?: number } | null>(null);
   const registeredParsers = getRegisteredParsers();
 
   const handleFileUpload = async (file: File) => {
     setLoading(true);
-    setErrorMsg(null);
-    setSuccessMsg(null);
+    setFeedback(null);
 
     try {
       const parseResult = await parseCsvFile(file);
       if (!parseResult.success || parseResult.records.length === 0) {
-        setErrorMsg(parseResult.errors[0] || '無法解析該 CSV 檔案，請確認檔案格式是否正確。');
+        const errorText = parseResult.errors[0] || '無法解析該檔案，請確認檔案格式是否正確。';
+        setFeedback({
+          type: 'error',
+          title: '檔案解析失敗',
+          message: errorText,
+        });
+        if (onNotify) {
+          onNotify({
+            type: 'error',
+            title: '檔案解析失敗',
+            message: errorText,
+          });
+        }
         setLoading(false);
         return;
       }
 
       const { added, updated } = await bulkAddRecords(parseResult.records);
-      setSuccessMsg(`成功匯入 ${added + updated} 筆體組成紀錄！(${parseResult.formatName})`);
+      const total = added + updated;
+      const successTitle = '🎉 檔案匯入成功！';
+      const successMessage = `成功處理 ${total} 筆體組成量測紀錄 (新增 ${added} 筆, 更新 ${updated} 筆)。`;
+
+      setFeedback({
+        type: 'success',
+        title: successTitle,
+        message: successMessage,
+        formatName: parseResult.formatName,
+        count: total,
+      });
+
+      if (onNotify) {
+        onNotify({
+          type: 'success',
+          title: successTitle,
+          message: successMessage,
+          formatName: parseResult.formatName,
+          added,
+          updated,
+          total,
+        });
+      }
+
+      // Allow user to see the success state before loading dashboard
       setTimeout(() => {
         onDataLoaded();
-      }, 800);
+      }, 1000);
     } catch (err: any) {
-      setErrorMsg(`匯入發生錯誤: ${err?.message || '未知錯誤'}`);
+      const errMsg = err?.message || '未知錯誤，請檢查檔案內容格式。';
+      setFeedback({
+        type: 'error',
+        title: '匯入發生錯誤',
+        message: errMsg,
+      });
+      if (onNotify) {
+        onNotify({
+          type: 'error',
+          title: '匯入發生錯誤',
+          message: errMsg,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -124,18 +172,93 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onDataLoaded, onOpenAddM
           <input
             type="file"
             accept=".csv,.xlsx,.xls,.json"
-            onChange={onFileInputChange}
+            onChange={(e) => {
+              onFileInputChange(e);
+              e.target.value = '';
+            }}
             className="hidden"
             id="csv-file-input"
             disabled={loading}
           />
           <label htmlFor="csv-file-input" className="cursor-pointer block py-2">
-            <FileText className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-3" />
+            {loading ? (
+              <div className="animate-spin rounded-full h-10 w-10 border-2 border-brand-500 border-t-transparent mx-auto mb-3"></div>
+            ) : (
+              <FileText className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-3" />
+            )}
             <span className="font-semibold text-gray-700 dark:text-slate-200 block text-base">
-              點擊選擇 CSV / Excel / JSON 檔案 或 拖曳檔案至此
+              {loading ? '正在解析並儲存至本地資料庫中...' : '點擊選擇 CSV / Excel / JSON 檔案 或 拖曳檔案至此'}
             </span>
           </label>
         </div>
+
+        {/* Loading Progress Notification */}
+        {loading && (
+          <div className="mt-4 p-4 rounded-xl bg-brand-50 dark:bg-brand-950/40 border border-brand-200 dark:border-brand-800 text-brand-700 dark:text-brand-300 flex items-center justify-center space-x-3 animate-pulse">
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-brand-600 dark:border-brand-400 border-t-transparent"></div>
+            <span className="font-semibold text-xs sm:text-sm">正在解析檔案格式並寫入本地資料庫，請稍候...</span>
+          </div>
+        )}
+
+        {/* Prominent Feedback Card */}
+        {feedback && !loading && (
+          <div
+            className={`mt-4 p-4 sm:p-5 rounded-xl border text-left shadow-sm transition-all animate-in fade-in duration-200 ${
+              feedback.type === 'success'
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+                : 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start space-x-3">
+                <div
+                  className={`p-2 rounded-xl flex-shrink-0 mt-0.5 ${
+                    feedback.type === 'success'
+                      ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                      : 'bg-rose-500 text-white shadow-md shadow-rose-500/20'
+                  }`}
+                >
+                  {feedback.type === 'success' ? (
+                    <CheckCircle2 className="w-5 h-5" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5" />
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <h4 className="font-bold text-base leading-tight">{feedback.title}</h4>
+                  <p className="text-xs sm:text-sm opacity-90 leading-relaxed">{feedback.message}</p>
+
+                  {feedback.formatName && feedback.type === 'success' && (
+                    <div className="flex flex-wrap gap-1.5 pt-1.5">
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800">
+                        📁 格式：{feedback.formatName}
+                      </span>
+                      {feedback.count !== undefined && (
+                        <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800">
+                          ✨ 共匯入 {feedback.count} 筆紀錄
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {feedback.type === 'error' && (
+                    <div className="text-xs text-rose-700 dark:text-rose-300 pt-1 leading-relaxed bg-rose-100/60 dark:bg-rose-900/30 p-2.5 rounded-lg border border-rose-200 dark:border-rose-800/50">
+                      💡 提示：請確認上傳檔案是否為支援之格式（Omron Connect CSV、OKOK 國際版 Excel 或 JSON 備份檔），且資料行中含有有效之「測量日期」與「體重」數值。
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <button
+                onClick={() => setFeedback(null)}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-slate-700/50 transition-colors flex-shrink-0"
+                title="關閉提示"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Supported Data Formats Grid below Dashed Dropzone Box */}
         <div className="mt-6 pt-5 border-t border-gray-100 dark:border-slate-700/60 text-left">
@@ -163,30 +286,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onDataLoaded, onOpenAddM
             ))}
           </div>
         </div>
-
-
-
-        {/* Feedback Messages */}
-        {loading && (
-          <div className="mt-4 flex items-center justify-center text-brand-600 dark:text-brand-400 text-sm font-medium">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
-            正在解析並儲存資料至本地端...
-          </div>
-        )}
-
-        {errorMsg && (
-          <div className="mt-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm flex items-center justify-center space-x-2">
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-        )}
-
-        {successMsg && (
-          <div className="mt-4 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-sm flex items-center justify-center space-x-2">
-            <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
-            <span>{successMsg}</span>
-          </div>
-        )}
 
 
 

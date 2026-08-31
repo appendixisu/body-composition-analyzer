@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { BodyRecord, DateRangeOption } from '../types/bodyComposition';
 import { filterRecordsByDateRange, prepareChartData, prepareWeeklyData } from '../services/analytics';
 import {
@@ -15,7 +15,8 @@ import {
   Bar,
   LabelList,
 } from 'recharts';
-import { TrendingUp, Filter, Eye } from 'lucide-react';
+import { TrendingUp, Filter, Eye, Copy, Check } from 'lucide-react';
+import { toBlob, toPng } from 'html-to-image';
 
 interface ChartsViewProps {
   records: BodyRecord[];
@@ -25,10 +26,81 @@ export const ChartsView: React.FC<ChartsViewProps> = ({ records }) => {
   const [rangeOption, setRangeOption] = useState<DateRangeOption>('all');
   const [showSma, setShowSma] = useState<boolean>(true);
   const [chartType, setChartType] = useState<'main' | 'weekly' | 'balance' | 'segmental' | 'bmi'>('main');
+  const [copying, setCopying] = useState<boolean>(false);
+  const [copySuccess, setCopySuccess] = useState<boolean>(false);
+  const chartCardRef = useRef<HTMLDivElement>(null);
 
   const filtered = filterRecordsByDateRange(records, { range: rangeOption });
   const chartData = prepareChartData(filtered);
   const weeklyData = prepareWeeklyData(filtered);
+
+  const handleCopyImage = async () => {
+    if (!chartCardRef.current || copying) return;
+    setCopying(true);
+    try {
+      const isDark = document.documentElement.classList.contains('dark');
+      
+      // Allow render settling
+      await new Promise((r) => setTimeout(r, 60));
+
+      const blob = await toBlob(chartCardRef.current, {
+        pixelRatio: 2, // crisp high-res 2x retina
+        backgroundColor: isDark ? '#1e293b' : '#ffffff',
+        cacheBust: true,
+        filter: (node) => {
+          if (node instanceof HTMLElement && node.classList.contains('no-export')) {
+            return false;
+          }
+          return true;
+        },
+      });
+
+      if (blob) {
+        if (navigator.clipboard && typeof navigator.clipboard.write === 'function' && window.ClipboardItem) {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob }),
+          ]);
+          setCopySuccess(true);
+          setTimeout(() => setCopySuccess(false), 2500);
+        } else {
+          // Fallback download if clipboard API is not available in browser/webview
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `體組成趨勢分析_${chartType}_${new Date().toISOString().slice(0, 10)}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+          setCopySuccess(true);
+          setTimeout(() => setCopySuccess(false), 2500);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to copy chart image to clipboard:', err);
+      try {
+        const isDark = document.documentElement.classList.contains('dark');
+        const dataUrl = await toPng(chartCardRef.current, {
+          pixelRatio: 2,
+          backgroundColor: isDark ? '#1e293b' : '#ffffff',
+          filter: (node) => {
+            if (node instanceof HTMLElement && node.classList.contains('no-export')) {
+              return false;
+            }
+            return true;
+          },
+        });
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = `體組成趨勢分析_${chartType}_${new Date().toISOString().slice(0, 10)}.png`;
+        a.click();
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2500);
+      } catch (e2) {
+        console.error('Fallback export error:', e2);
+      }
+    } finally {
+      setCopying(false);
+    }
+  };
 
   const rangeButtons: { id: DateRangeOption; label: string }[] = [
     { id: '7d', label: '近7天' },
@@ -207,11 +279,14 @@ export const ChartsView: React.FC<ChartsViewProps> = ({ records }) => {
       </div>
 
       {/* Main Chart Container */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 border border-gray-100 dark:border-slate-700 shadow-sm">
+      <div
+        ref={chartCardRef}
+        className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 border border-gray-100 dark:border-slate-700 shadow-sm"
+      >
         
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div className="flex items-center space-x-2">
-            <TrendingUp className="w-5 h-5 text-brand-500" />
+            <TrendingUp className="w-5 h-5 text-brand-500 flex-shrink-0" />
             <h3 className="font-bold text-gray-900 dark:text-white text-base">
               {chartType === 'main' && '每日體重 (kg) 與 體脂肪率 (%) 趨勢'}
               {chartType === 'weekly' && '每週平均體重與體脂率趨勢 (週聚合法)'}
@@ -220,11 +295,43 @@ export const ChartsView: React.FC<ChartsViewProps> = ({ records }) => {
               {chartType === 'bmi' && 'BMI 體質指數 與 身體年齡變化 (Years)'}
             </h3>
           </div>
-          <span className="text-xs text-gray-400">
-            {chartType === 'weekly'
-              ? `顯示 ${weeklyData.length} 週數據 (共包含 ${chartData.length} 次量測)`
-              : `顯示 ${chartData.length} 筆資料點`}
-          </span>
+
+          <div className="flex items-center justify-between sm:justify-end space-x-3 no-export">
+            <span className="text-xs text-gray-400">
+              {chartType === 'weekly'
+                ? `顯示 ${weeklyData.length} 週 (共 ${chartData.length} 次量測)`
+                : `顯示 ${chartData.length} 筆資料點`}
+            </span>
+
+            {/* Copy Chart Image Button */}
+            <button
+              onClick={handleCopyImage}
+              disabled={copying || chartData.length === 0}
+              className={`no-export flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all shadow-sm active:scale-95 ${
+                copySuccess
+                  ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/20'
+                  : 'bg-white dark:bg-slate-700 border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-200 hover:border-brand-400 hover:text-brand-600 dark:hover:text-brand-400'
+              }`}
+              title="複製圖表圖片至剪貼簿（或下載 PNG 圖片）"
+            >
+              {copying ? (
+                <>
+                  <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-brand-500 border-t-transparent"></div>
+                  <span>擷取中...</span>
+                </>
+              ) : copySuccess ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 stroke-[2.5]" />
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">已複製圖片！</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-gray-500 dark:text-slate-400" />
+                  <span>複製圖片</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         <div className="h-[380px] sm:h-[450px] w-full">

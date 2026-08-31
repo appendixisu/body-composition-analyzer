@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { BodyRecord } from '../types/bodyComposition';
+import { TabType } from './Navbar';
 import { calculateSummary, getBmiCategory, getBodyFatCategory, getVisceralFatCategory, calculateWeightLossQuality, calculateWeightVelocity } from '../services/analytics';
-import { Scale, Flame, Activity, Heart, Calendar, Award, ArrowUpRight, ArrowDownRight, Minus, AlertTriangle, ShieldCheck, Dumbbell, AlertOctagon, Gauge } from 'lucide-react';
+import { Scale, Flame, Activity, Heart, Calendar, Award, ArrowUpRight, ArrowDownRight, Minus, AlertTriangle, ShieldCheck, Dumbbell, AlertOctagon, Gauge, Share2 } from 'lucide-react';
 
 interface DashboardProps {
   records: BodyRecord[];
-  onNavigateTab: (tab: 'charts' | 'segmental' | 'history' | 'data') => void;
+  onNavigateTab: (tab: TabType) => void;
   onOpenAddModal: () => void;
 }
 
@@ -80,18 +81,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ records, onNavigateTab, on
             </p>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
               onClick={onOpenAddModal}
-              className="px-4 py-2 bg-white text-brand-700 hover:bg-brand-50 font-semibold text-sm rounded-xl shadow transition-colors"
+              className="px-3.5 py-2 bg-white text-brand-700 hover:bg-brand-50 font-semibold text-xs sm:text-sm rounded-xl shadow transition-colors"
             >
-              + 新增本日量測
+              + 新增量測
+            </button>
+            <button
+              onClick={() => onNavigateTab('share')}
+              className="flex items-center space-x-1.5 px-3.5 py-2 bg-white/20 hover:bg-white/30 text-white font-semibold text-xs sm:text-sm rounded-xl backdrop-blur-sm transition-colors border border-white/20"
+            >
+              <Share2 className="w-4 h-4" />
+              <span>成果分享</span>
             </button>
             <button
               onClick={() => onNavigateTab('charts')}
-              className="px-4 py-2 bg-black/20 hover:bg-black/30 text-white font-medium text-sm rounded-xl backdrop-blur-sm transition-colors"
+              className="px-3.5 py-2 bg-black/20 hover:bg-black/30 text-white font-medium text-xs sm:text-sm rounded-xl backdrop-blur-sm transition-colors"
             >
-              查看趨勢圖表 →
+              趨勢圖表 →
             </button>
           </div>
         </div>

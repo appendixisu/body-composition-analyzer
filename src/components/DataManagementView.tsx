@@ -1,16 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BodyRecord } from '../types/bodyComposition';
 import { ThemeMode } from './Navbar';
 import { parseCsvFile, getRegisteredParsers } from '../services/parsers/parserFactory';
 import { bulkAddRecords, clearAllRecords } from '../services/db';
-import { Upload, Download, Trash2, Database, AlertCircle, CheckCircle2, ShieldCheck, Monitor, Sun, Moon } from 'lucide-react';
+import { Upload, Download, Trash2, Database, AlertCircle, CheckCircle2, ShieldCheck, Monitor, Sun, Moon, X } from 'lucide-react';
 import Papa from 'papaparse';
+import { ToastNotification } from '../App';
 
 interface DataManagementViewProps {
   records: BodyRecord[];
   onRefresh: () => void;
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
+  onNotify?: (toast: ToastNotification) => void;
+}
+
+interface FeedbackState {
+  type: 'success' | 'error';
+  title: string;
+  message: string;
+  formatName?: string;
+  added?: number;
+  updated?: number;
+  total?: number;
 }
 
 export const DataManagementView: React.FC<DataManagementViewProps> = ({
@@ -18,28 +30,87 @@ export const DataManagementView: React.FC<DataManagementViewProps> = ({
   onRefresh,
   themeMode,
   setThemeMode,
+  onNotify,
 }) => {
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const registeredParsers = getRegisteredParsers();
+
+  // Auto-dismiss floating notification after 7 seconds
+  useEffect(() => {
+    if (feedback) {
+      const timer = setTimeout(() => {
+        setFeedback(null);
+      }, 7000);
+      return () => clearTimeout(timer);
+    }
+  }, [feedback]);
 
   const handleFileUpload = async (file: File) => {
     setLoading(true);
-    setMsg(null);
+    setFeedback(null);
 
     try {
       const parseResult = await parseCsvFile(file);
       if (!parseResult.success || parseResult.records.length === 0) {
-        setMsg({ type: 'error', text: parseResult.errors[0] || '無法解析該 CSV 檔案' });
+        const errText = parseResult.errors[0] || '無法解析該檔案，請確認檔案格式是否正確。';
+        setFeedback({
+          type: 'error',
+          title: '檔案解析失敗',
+          message: errText,
+        });
+        if (onNotify) {
+          onNotify({
+            type: 'error',
+            title: '檔案解析失敗',
+            message: errText,
+          });
+        }
         setLoading(false);
         return;
       }
 
       const { added, updated } = await bulkAddRecords(parseResult.records);
-      setMsg({ type: 'success', text: `成功處理 ${added + updated} 筆紀錄 (新增 ${added} 筆, 更新 ${updated} 筆) - ${parseResult.formatName}` });
+      const total = added + updated;
+      const successTitle = '🎉 檔案匯入成功！';
+      const successMessage = `成功處理 ${total} 筆紀錄 (新增 ${added} 筆, 更新 ${updated} 筆)。`;
+      
+      setFeedback({
+        type: 'success',
+        title: successTitle,
+        message: successMessage,
+        formatName: parseResult.formatName,
+        added,
+        updated,
+        total,
+      });
+
+      if (onNotify) {
+        onNotify({
+          type: 'success',
+          title: successTitle,
+          message: successMessage,
+          formatName: parseResult.formatName,
+          added,
+          updated,
+          total,
+        });
+      }
       onRefresh();
     } catch (err: any) {
-      setMsg({ type: 'error', text: `匯入發生錯誤: ${err?.message || '未知錯誤'}` });
+      const errMsg = err?.message || '檔案解析過程中發生未知錯誤，請檢查檔案內容。';
+      setFeedback({
+        type: 'error',
+        title: '匯入發生錯誤',
+        message: errMsg,
+      });
+      if (onNotify) {
+        onNotify({
+          type: 'error',
+          title: '匯入發生錯誤',
+          message: errMsg,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -96,14 +167,55 @@ export const DataManagementView: React.FC<DataManagementViewProps> = ({
   const handleClearAll = async () => {
     if (window.confirm('確定要清空所有本地端的體重紀錄嗎？此動作無法復原。')) {
       await clearAllRecords();
-      setMsg({ type: 'success', text: '已成功清空本地端所有數據！' });
+      setFeedback({
+        type: 'success',
+        title: '已清空資料庫',
+        message: '已成功清空本地端所有數據紀錄！',
+      });
       onRefresh();
     }
   };
 
   return (
-    <div className="space-y-6 pb-12 max-w-4xl mx-auto">
+    <div className="space-y-6 pb-12 max-w-4xl mx-auto relative">
       
+      {/* Floating Toast Notification (Always Visible on Screen) */}
+      {feedback && (
+        <div
+          className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-lg p-4 rounded-2xl shadow-2xl backdrop-blur-md border flex items-start justify-between space-x-3 transition-all duration-300 transform animate-in fade-in slide-in-from-top-4 ${
+            feedback.type === 'success'
+              ? 'bg-emerald-600/95 text-white border-emerald-400 shadow-emerald-950/30'
+              : 'bg-rose-600/95 text-white border-rose-400 shadow-rose-950/30'
+          }`}
+        >
+          <div className="flex items-start space-x-3">
+            <div className="p-1.5 bg-white/20 rounded-xl flex-shrink-0 mt-0.5">
+              {feedback.type === 'success' ? (
+                <CheckCircle2 className="w-5 h-5 text-white" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-white" />
+              )}
+            </div>
+            <div>
+              <h4 className="font-bold text-sm leading-tight">{feedback.title}</h4>
+              <p className="text-xs mt-1 text-white/95 leading-relaxed">{feedback.message}</p>
+              {feedback.formatName && feedback.type === 'success' && (
+                <span className="inline-block mt-2 text-[11px] font-semibold bg-white/20 px-2.5 py-0.5 rounded-md">
+                  格式：{feedback.formatName}
+                </span>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={() => setFeedback(null)}
+            className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition-colors flex-shrink-0"
+            title="關閉提示"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Privacy Guarantee Card */}
       <div className="bg-gradient-to-r from-blue-50 via-indigo-50/60 to-blue-50 dark:from-slate-900 dark:via-indigo-950/80 dark:to-slate-900 border border-blue-200/80 dark:border-indigo-500/40 rounded-2xl p-5 flex items-start space-x-3.5 shadow-sm dark:shadow-indigo-950/50">
         <div className="p-2.5 bg-blue-600 dark:bg-indigo-600 text-white rounded-xl flex-shrink-0 mt-0.5 shadow-md shadow-blue-500/20 dark:shadow-indigo-500/30">
@@ -120,15 +232,6 @@ export const DataManagementView: React.FC<DataManagementViewProps> = ({
         </div>
       </div>
 
-      {msg && (
-        <div className={`p-4 rounded-xl text-sm flex items-center space-x-2 ${
-          msg.type === 'success' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-rose-50 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300'
-        }`}>
-          {msg.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-          <span>{msg.text}</span>
-        </div>
-      )}
-
       {/* CSV Import Card */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-100 dark:border-slate-700 shadow-sm space-y-4">
         <div className="flex items-center space-x-3 border-b border-gray-100 dark:border-slate-700 pb-4">
@@ -141,24 +244,115 @@ export const DataManagementView: React.FC<DataManagementViewProps> = ({
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           <input
             type="file"
             accept=".csv,.xlsx,.xls,.json"
-            onChange={(e) => e.target.files && e.target.files[0] && handleFileUpload(e.target.files[0])}
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                handleFileUpload(e.target.files[0]);
+              }
+              e.target.value = '';
+            }}
             id="management-csv-input"
             className="hidden"
             disabled={loading}
           />
           <label
             htmlFor="management-csv-input"
-            className="flex flex-col sm:flex-row items-center justify-center space-y-1.5 sm:space-y-0 sm:space-x-2 w-full py-6 sm:py-4 px-4 sm:px-6 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl hover:border-brand-500 cursor-pointer transition-colors bg-gray-50/50 dark:bg-slate-900/50 text-center"
+            className={`flex flex-col sm:flex-row items-center justify-center space-y-1.5 sm:space-y-0 sm:space-x-2 w-full py-6 sm:py-4 px-4 sm:px-6 border-2 border-dashed rounded-xl cursor-pointer transition-all text-center ${
+              loading
+                ? 'border-brand-400 bg-brand-50/40 dark:bg-brand-950/20 opacity-70 cursor-wait'
+                : 'border-gray-300 dark:border-slate-600 hover:border-brand-500 hover:bg-brand-50/30 dark:hover:bg-slate-900/80 bg-gray-50/50 dark:bg-slate-900/50'
+            }`}
           >
-            <Upload className="w-5 h-5 text-brand-500 flex-shrink-0" />
+            {loading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-brand-500 border-t-transparent flex-shrink-0"></div>
+            ) : (
+              <Upload className="w-5 h-5 text-brand-500 flex-shrink-0" />
+            )}
             <span className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-slate-200 leading-snug">
-              {loading ? '正在解析中...' : '選擇 CSV, Excel (.xlsx/.xls) 或 JSON 檔案進行匯入'}
+              {loading ? '正在解析並寫入資料庫中...' : '選擇 CSV, Excel (.xlsx/.xls) 或 JSON 檔案進行匯入'}
             </span>
           </label>
+
+          {/* Loading Progress State */}
+          {loading && (
+            <div className="p-4 rounded-xl bg-brand-50 dark:bg-brand-950/40 border border-brand-200 dark:border-brand-800 text-brand-700 dark:text-brand-300 flex items-center justify-center space-x-3 animate-pulse">
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-brand-600 dark:border-brand-400 border-t-transparent"></div>
+              <span className="font-semibold text-xs sm:text-sm">正在解析檔案格式並儲存至本地資料庫，請稍候...</span>
+            </div>
+          )}
+
+          {/* In-Card Prominent Result Status */}
+          {feedback && !loading && (
+            <div
+              className={`p-4 sm:p-5 rounded-xl border shadow-sm transition-all animate-in fade-in duration-200 ${
+                feedback.type === 'success'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+                  : 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start space-x-3">
+                  <div
+                    className={`p-2 rounded-xl flex-shrink-0 mt-0.5 ${
+                      feedback.type === 'success'
+                        ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                        : 'bg-rose-500 text-white shadow-md shadow-rose-500/20'
+                    }`}
+                  >
+                    {feedback.type === 'success' ? (
+                      <CheckCircle2 className="w-5 h-5" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5" />
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <h4 className="font-bold text-base leading-tight">{feedback.title}</h4>
+                    <p className="text-xs sm:text-sm opacity-90 leading-relaxed">{feedback.message}</p>
+
+                    {feedback.type === 'success' && (
+                      <div className="flex flex-wrap gap-1.5 pt-1.5">
+                        {feedback.formatName && (
+                          <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800">
+                            📁 格式：{feedback.formatName}
+                          </span>
+                        )}
+                        {feedback.added !== undefined && (
+                          <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800">
+                            ➕ 新增 {feedback.added} 筆
+                          </span>
+                        )}
+                        {feedback.updated !== undefined && feedback.updated > 0 && (
+                          <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800">
+                            🔄 更新覆蓋 {feedback.updated} 筆
+                          </span>
+                        )}
+                        <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-200 dark:bg-emerald-800 text-emerald-900 dark:text-emerald-100">
+                          📊 本地資料庫現存 {records.length} 筆
+                        </span>
+                      </div>
+                    )}
+
+                    {feedback.type === 'error' && (
+                      <div className="text-xs text-rose-700 dark:text-rose-300 pt-1 leading-relaxed bg-rose-100/60 dark:bg-rose-900/30 p-2.5 rounded-lg border border-rose-200 dark:border-rose-800/50">
+                        💡 提示：請確認上傳檔案是否為支援之格式（Omron Connect CSV、OKOK 國際版 Excel 或 JSON 備份檔），且資料行中含有有效之「測量日期」與「體重」數值。
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setFeedback(null)}
+                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-slate-700/50 transition-colors flex-shrink-0"
+                  title="關閉提示"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Registered Parsers Info */}
           <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
